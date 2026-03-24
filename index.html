@@ -10,6 +10,7 @@
         .animate-shake { animation: shake 0.2s ease-in-out; }
         .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
         .hidden { display: none; }
+        .timer-bar { transition: width 1s linear; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans min-h-screen transition-colors duration-300">
@@ -79,14 +80,30 @@
 
     <!-- 3. ANAGRAM GAME VIEW -->
     <div id="view-anagram" class="hidden min-h-screen flex flex-col pt-24 p-4 md:p-8">
-        <div class="fixed top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-center glass-panel z-20 shadow-sm">
-            <button onclick="confirmExit()" class="flex items-center gap-2 text-slate-500 font-bold hover:text-red-500 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                <span class="hidden sm:inline">Quit Game</span>
-            </button>
-            <div class="flex gap-4 md:gap-8 items-center text-lg md:text-xl font-black">
-                <span id="game-progress" class="text-slate-400">Word 1/10</span>
-                <span id="game-score" class="text-indigo-600 bg-indigo-50 px-4 py-1 rounded-full">0</span>
+        <div class="fixed top-0 left-0 right-0 glass-panel z-20 shadow-sm overflow-hidden">
+            <div class="p-4 md:p-6 flex justify-between items-center">
+                <button onclick="confirmExit()" class="flex items-center gap-2 text-slate-500 font-bold hover:text-red-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                    <span class="hidden sm:inline">Quit Game</span>
+                </button>
+                <div class="flex gap-4 md:gap-8 items-center">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] font-black uppercase text-slate-400">Time Left</span>
+                        <span id="timer-display" class="text-xl font-black text-rose-500">20s</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] font-black uppercase text-slate-400">Score</span>
+                        <span id="game-score" class="text-xl font-black text-indigo-600 bg-indigo-50 px-4 py-1 rounded-full">0</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] font-black uppercase text-slate-400">Progress</span>
+                        <span id="game-progress" class="text-xl font-black text-slate-600">1/10</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Progress bar for timer -->
+            <div class="h-1.5 bg-slate-100 w-full">
+                <div id="timer-bar" class="h-full bg-rose-500 timer-bar w-full"></div>
             </div>
         </div>
 
@@ -127,10 +144,11 @@
               appId: "1:954092350845:web:b16cfce906a8349e8bf014",
               measurementId: "G-LDWC6QFKCE"
         };
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = 'anagram-game';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edugame-maker-v2';
 
         // --- State Management ---
         let user = null;
@@ -141,6 +159,11 @@
         let score = 0;
         let currentWordAnswer = [];
         let currentView = 'library';
+        
+        // Timer logic
+        let timeLeft = 20;
+        let timerInterval = null;
+        const WORD_TIME_LIMIT = 20; // Seconds per word
 
         // --- Exponential Backoff Fetch ---
         async function fetchWithRetry(fn, retries = 5, delay = 1000) {
@@ -158,6 +181,7 @@
             document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('hidden'));
             document.getElementById('view-' + viewId).classList.remove('hidden');
             currentView = viewId;
+            if (viewId !== 'anagram') stopTimer();
             window.scrollTo(0,0);
         };
 
@@ -171,7 +195,7 @@
                 }
             } catch (error) {
                 console.error("Auth error", error);
-                showModal("Connection Error", "Could not connect to the server. Please check your internet connection.");
+                showModal("Connection Error", "Could not connect to the server.");
             }
         };
 
@@ -310,11 +334,72 @@
             }
         };
 
+        function startTimer() {
+            stopTimer();
+            timeLeft = WORD_TIME_LIMIT;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                
+                if (timeLeft <= 0) {
+                    stopTimer();
+                    handleTimeUp();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        function updateTimerUI() {
+            const display = document.getElementById('timer-display');
+            const bar = document.getElementById('timer-bar');
+            
+            display.innerText = timeLeft + "s";
+            const percent = (timeLeft / WORD_TIME_LIMIT) * 100;
+            bar.style.width = percent + "%";
+            
+            if (timeLeft <= 5) {
+                display.classList.add('animate-pulse');
+                bar.classList.replace('bg-rose-500', 'bg-red-600');
+            } else {
+                display.classList.remove('animate-pulse');
+                bar.classList.replace('bg-red-600', 'bg-rose-500');
+            }
+        }
+
+        function handleTimeUp() {
+            // Shake the answer area to show failure
+            const slots = document.getElementById('anagram-answer-slots');
+            slots.classList.add('animate-shake');
+            
+            showModal("Time's Up!", `
+                <div class="text-center space-y-4">
+                    <p class="text-slate-500">The word was: <span class="font-bold text-slate-800">${activeGame.wordList[anagramIndex].word}</span></p>
+                    <button onclick="closeModal(); nextWord();" class="w-full bg-indigo-600 text-white p-4 rounded-2xl font-bold mt-4 shadow-lg">
+                        Continue to Next Word
+                    </button>
+                </div>
+            `, false);
+        }
+
+        window.nextWord = () => {
+            anagramIndex++;
+            if(anagramIndex < activeGame.wordList.length) {
+                loadAnagramWord();
+            } else {
+                showGameSummary();
+            }
+        };
+
         function loadAnagramWord() {
             const item = activeGame.wordList[anagramIndex];
             document.getElementById('anagram-clue').innerText = item.clue;
             document.getElementById('game-score').innerText = score;
-            document.getElementById('game-progress').innerText = `Word ${anagramIndex + 1}/${activeGame.wordList.length}`;
+            document.getElementById('game-progress').innerText = `${anagramIndex + 1}/${activeGame.wordList.length}`;
             
             const slots = document.getElementById('anagram-answer-slots');
             slots.innerHTML = item.word.split('').map(() => `
@@ -322,23 +407,25 @@
             `).join('');
             
             const tiles = document.getElementById('anagram-tiles');
-            // Shuffle letters but ensure it's not the actual word by chance
             let letters = item.word.split('');
             do {
                 letters.sort(() => Math.random() - 0.5);
             } while (letters.join('') === item.word && letters.length > 1);
 
             tiles.innerHTML = letters.map((char, i) => `
-                <button onclick="handleTileClick(this, '${char}')" 
+                <button data-char="${char}" onclick="handleTileClick(this, '${char}')" 
                     class="w-12 h-14 md:w-16 md:h-20 bg-white rounded-xl md:rounded-2xl shadow-lg text-2xl md:text-3xl font-black border-b-4 border-slate-300 active:translate-y-1 active:border-b-0 transition-all hover:bg-indigo-50 hover:text-indigo-600">
                     ${char}
                 </button>
             `).join('');
             
             currentWordAnswer = [];
+            startTimer();
         }
 
         window.handleTileClick = (btn, char) => {
+            if (timeLeft <= 0) return; // Prevent input if time is up
+
             const correctWord = activeGame.wordList[anagramIndex].word;
             const expectedChar = correctWord[currentWordAnswer.length];
 
@@ -354,13 +441,14 @@
                 currentWordAnswer.push(char);
                 btn.style.opacity = '0';
                 btn.style.pointerEvents = 'none';
-                btn.classList.add('used-tile'); // Mark as used for keyboard logic
-
+                btn.classList.add('used-tile'); 
                 
-                score += 10;
+                // Score includes a time bonus
+                score += (10 + Math.floor(timeLeft / 2));
                 document.getElementById('game-score').innerText = score;
 
                 if (currentWordAnswer.length === correctWord.length) {
+                    stopTimer();
                     handleWordComplete();
                 }
             } else {
@@ -368,41 +456,35 @@
                 setTimeout(() => btn.classList.remove('animate-shake', 'border-red-500', 'text-red-500'), 500);
             }
         };
-         // Keyboard Support
+
+        // Keyboard Support
         document.addEventListener('keydown', (e) => {
-            if (currentView !== 'anagram' || !activeGame) return;
-            
-            // Ignore if typing in a modal or search
+            if (currentView !== 'anagram' || !activeGame || timeLeft <= 0) return;
             if (document.activeElement.tagName === 'INPUT') return;
 
             const char = e.key.toUpperCase();
             if (char.length === 1 && char >= 'A' && char <= 'Z') {
-                // Find first unused tile that matches this character
                 const tiles = Array.from(document.querySelectorAll('#anagram-tiles button:not(.used-tile)'));
                 const match = tiles.find(t => t.getAttribute('data-char') === char);
                 
                 if (match) {
                     handleTileClick(match, char);
                 } else {
-                    // Visual feedback for wrong key or all of that char used
                     const slots = document.getElementById('anagram-answer-slots');
                     slots.classList.add('animate-shake');
                     setTimeout(() => slots.classList.remove('animate-shake'), 200);
                 }
             }
         });
+
         function handleWordComplete() {
             setTimeout(() => {
-                anagramIndex++;
-                if(anagramIndex < activeGame.wordList.length) {
-                    loadAnagramWord();
-                } else {
-                    showGameSummary();
-                }
+                nextWord();
             }, 800);
         }
 
         function showGameSummary() {
+            stopTimer();
             showModal("Course Complete!", `
                 <div class="text-center space-y-4">
                     <div class="text-6xl mb-4">🏆</div>
@@ -419,10 +501,11 @@
         }
 
         window.confirmExit = () => {
+            stopTimer();
             showModal("Quit Game?", `
-                <p class="text-slate-500 mb-6">Are you sure you want to quit? Your current progress will be lost.</p>
+                <p class="text-slate-500 mb-6">Are you sure you want to quit? Your progress will be lost.</p>
                 <div class="flex gap-3">
-                    <button onclick="closeModal()" class="flex-1 bg-slate-100 p-4 rounded-2xl font-bold">Keep Playing</button>
+                    <button onclick="closeModal(); startTimer();" class="flex-1 bg-slate-100 p-4 rounded-2xl font-bold">Keep Playing</button>
                     <button onclick="closeModal(); showView('library')" class="flex-1 bg-red-500 text-white p-4 rounded-2xl font-bold">Quit</button>
                 </div>
             `);
@@ -436,7 +519,7 @@
             contentBox.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-2xl font-black text-slate-800">${title}</h3>
-                    ${showClose ? `<button onclick="closeModal()" class="text-slate-300 hover:text-slate-500"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>` : ''}
+                    ${showClose ? `<button onclick="closeModal(); startTimer();" class="text-slate-300 hover:text-slate-500"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>` : ''}
                 </div>
                 <div class="text-slate-600">${content}</div>
             `;
@@ -458,7 +541,6 @@
             return div.innerHTML;
         }
 
-        // Initialize App
         initAuth();
     </script>
 </body>
