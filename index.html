@@ -118,7 +118,15 @@
         import { getFirestore, collection, doc, addDoc, getDoc, onSnapshot, query, setDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         // --- Firebase Init ---
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = {
+              apiKey: "AIzaSyAVhUXndWYToC8rTTB2euhLK3peqRdtOxU",
+              authDomain: "my-edu-game-3a6ab.firebaseapp.com",
+              projectId: "my-edu-game-3a6ab",
+              storageBucket: "my-edu-game-3a6ab.firebasestorage.app",
+              messagingSenderId: "954092350845",
+              appId: "1:954092350845:web:b16cfce906a8349e8bf014",
+              measurementId: "G-LDWC6QFKCE"
+        };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
