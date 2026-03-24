@@ -354,6 +354,8 @@
                 currentWordAnswer.push(char);
                 btn.style.opacity = '0';
                 btn.style.pointerEvents = 'none';
+                btn.classList.add('used-tile'); // Mark as used for keyboard logic
+
                 
                 score += 10;
                 document.getElementById('game-score').innerText = score;
@@ -366,7 +368,29 @@
                 setTimeout(() => btn.classList.remove('animate-shake', 'border-red-500', 'text-red-500'), 500);
             }
         };
+         // Keyboard Support
+        document.addEventListener('keydown', (e) => {
+            if (currentView !== 'anagram' || !activeGame) return;
+            
+            // Ignore if typing in a modal or search
+            if (document.activeElement.tagName === 'INPUT') return;
 
+            const char = e.key.toUpperCase();
+            if (char.length === 1 && char >= 'A' && char <= 'Z') {
+                // Find first unused tile that matches this character
+                const tiles = Array.from(document.querySelectorAll('#anagram-tiles button:not(.used-tile)'));
+                const match = tiles.find(t => t.getAttribute('data-char') === char);
+                
+                if (match) {
+                    handleTileClick(match, char);
+                } else {
+                    // Visual feedback for wrong key or all of that char used
+                    const slots = document.getElementById('anagram-answer-slots');
+                    slots.classList.add('animate-shake');
+                    setTimeout(() => slots.classList.remove('animate-shake'), 200);
+                }
+            }
+        });
         function handleWordComplete() {
             setTimeout(() => {
                 anagramIndex++;
