@@ -372,8 +372,8 @@
         window.removeWord = (i) => { setupWords.splice(i, 1); renderSetupWords(); };
 
 
-        3. UI RENDERING
- * This draws the score directly onto the game canvas.
+     //   3. UI RENDERING
+ /* This draws the score directly onto the game canvas.
  */
 function drawHUD(ctx, canvasWidth) {
   // Set text styles
@@ -449,8 +449,8 @@ function createScorePopup(x, y, points) {
             startTimer();
         };
 
-        2. COLLISION & SCORING LOGIC
- * This function is called inside the main game loop (usually every frame).
+      //  2. COLLISION & SCORING LOGIC
+ /* This function is called inside the main game loop (usually every frame).
  * It checks if the player/projectile has hit a target and updates the score.
  */
         function handleCollisions(player, targets) {
