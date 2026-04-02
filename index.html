@@ -371,6 +371,50 @@
 
         window.removeWord = (i) => { setupWords.splice(i, 1); renderSetupWords(); };
 
+
+        3. UI RENDERING
+ * This draws the score directly onto the game canvas.
+ */
+function drawHUD(ctx, canvasWidth) {
+  // Set text styles
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  // Draw current score (Top Left)
+  ctx.fillText(`SCORE: ${score}`, 20, 20);
+
+  // Draw high score (Top Right)
+  ctx.textAlign = 'right';
+  ctx.fillText(`BEST: ${highScore}`, canvasWidth - 20, 20);
+  
+  // Add a subtle shadow for better readability over bright backgrounds
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  ctx.shadowBlur = 4;
+}
+
+/**
+ * UTILITY: Collision Helper
+ */
+function isColliding(a, b) {
+  return a.x < b.x + b.width &&
+         a.x + a.width > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+
+/**
+ * UTILITY: Visual Feedback
+ * Creates a "floating number" effect at the point of impact
+ */
+function createScorePopup(x, y, points) {
+  console.log(`+${points} points at [${x}, ${y}]`);
+  // In the actual game, this would push an object to a 'particles' array
+}
+
+        
+        
         window.publishGame = async () => {
             const title = document.getElementById('setup-title').value.trim();
             if(!title || setupWords.length === 0) return showModal("Error", "Please provide a title and at least one word/clue pair.");
