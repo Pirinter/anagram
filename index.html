@@ -180,6 +180,11 @@
         let timerInterval = null;
         let totalElapsedSeconds = 0;
 
+        // These variables track the current session and the all-time best.
+        let score = 0;
+        let highScore = 0; // In a full app, we'd fetch this from storage/database
+
+
         // --- Utilities ---
         const escapeHtml = (t) => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
         const formatTime = (s) => {
