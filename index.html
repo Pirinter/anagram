@@ -405,6 +405,41 @@
             startTimer();
         };
 
+        2. COLLISION & SCORING LOGIC
+ * This function is called inside the main game loop (usually every frame).
+ * It checks if the player/projectile has hit a target and updates the score.
+ */
+        function handleCollisions(player, targets) {
+          for (let i = targets.length - 1; i >= 0; i--) {
+            const target = targets[i];
+
+    // Check for intersection between player and target
+            if (isColliding(player, target)) {
+      
+      // LOGIC ADDED: Increment score based on target type
+      // Small targets are harder to hit, so they grant more points
+              if (target.type === 'gold') {
+                score += 50;
+              } else {
+                score += 10;
+     }
+
+      // LOGIC ADDED: Update High Score if needed
+              if (score > highScore) {
+                highScore = score;
+              }
+
+      // Remove the target so it's only counted once
+              targets.splice(i, 1);
+      
+      // Trigger a visual feedback (optional)
+                createScorePopup(target.x, target.y, target.type === 'gold' ? 50 : 10);
+            }
+          }
+        }
+
+        
+        
         function startTimer() {
             stopTimer();
             gameStartTime = Date.now();
